@@ -10,8 +10,8 @@ while (true) {
     }
     console.log("loaded games");
     for (const game of res) {
-        console.log('game', game.id, 'turn', game.turn);
         if (game.turn === user) {
+            console.log(game.id)
             while (true) {
                 const i = Math.floor(Math.random() * 3);
                 const j = Math.floor(Math.random() * 3);

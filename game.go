@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/google/uuid"
 )
@@ -83,7 +83,7 @@ func MoveResult(game *Game, move *Move) error {
 }
 
 func randomPlayer() string {
-	return []string{"gwen", "jane"}[rand.Intn(2)]
+	return []string{"gwen", "jane"}[rand.IntN(2)]
 }
 
 func NewGame() Game {
