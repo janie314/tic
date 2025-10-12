@@ -21,7 +21,7 @@ func main() {
 
 func run() error {
 
-	var lock sync.RWMutex
+	var memoryLock sync.RWMutex
 
 	r := chi.NewRouter()
 
@@ -44,8 +44,8 @@ func run() error {
 		w.Write([]byte("1760301245"))
 	})
 	r.Get("/tic/games", func(w http.ResponseWriter, r *http.Request) {
-		lock.RLock()
-		defer lock.RUnlock()
+		memoryLock.RLock()
+		defer memoryLock.RUnlock()
 		var gamesSlice []Game
 		for _, v := range games {
 			gamesSlice = append(gamesSlice, v)
@@ -73,8 +73,8 @@ func run() error {
 		} else if res, err := json.Marshal(game); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
-			lock.Lock()
-			defer lock.Unlock()
+			memoryLock.Lock()
+			defer memoryLock.Unlock()
 			games[move.Id] = game
 			w.Write(res)
 		}
