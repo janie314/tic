@@ -44,7 +44,12 @@ func run() error {
 	r.Use(middleware.Timeout(2 * time.Second))
 	r.Use(middleware.Throttle(100))
 
-	filePath := "tic.log"
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	exeDir := filepath.Dir(exePath)
+	filePath := filepath.Join(exeDir, "tic.log")
 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
