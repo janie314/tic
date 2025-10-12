@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,9 @@ func main() {
 }
 
 func run() error {
+
+	var lock sync.RWMutex
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -45,7 +49,13 @@ func run() error {
 		w.Write([]byte("yes i am alive"))
 	})
 	r.Get("/tic/challenges", func(w http.ResponseWriter, r *http.Request) {
-		res, err := json.Marshal(games)
+		lock.RLock()
+		defer lock.RUnlock()
+		var gamesSlice []Game
+		for _, v := range games {
+			gamesSlice = append(gamesSlice, v)
+		}
+		res, err := json.Marshal(gamesSlice)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
