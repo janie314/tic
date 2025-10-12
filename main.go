@@ -147,7 +147,7 @@ func run() error {
 	})
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "dashboard"))
-	FileServer(r, "/dashboard", filesDir)
+	FileServer(r, "/tic/dashboard", filesDir)
 	return http.ListenAndServe(":3333", r)
 }
 
