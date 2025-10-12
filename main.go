@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -69,26 +70,24 @@ func run() error {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "application/json")
-			if _, err := w.Write(res); err != nil {
-				log.Println("error /tic/challenges", err)
-			}
+			w.Write(res)
 		}
 	})
-	r.Get("/tic/move", func(w http.ResponseWriter, r *http.Request) {
-		lock.RLock()
-		defer lock.RUnlock()
-		var gamesSlice []Game
-		for _, v := range games {
-			gamesSlice = append(gamesSlice, v)
-		}
-		res, err := json.Marshal(gamesSlice)
-		if err != nil {
+	r.Post("/tic/move", func(w http.ResponseWriter, r *http.Request) {
+		var move Move
+		if err := json.NewDecoder(r.Body).Decode(&move); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			if _, err := w.Write(res); err != nil {
-				log.Println("error /tic/challenges", err)
-			}
+			return
+		}
+		game, ok := games[move.Id]
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "thats not an ID")
+			return
+		}
+		res := MoveResult(&game, &move)
+		if res == Illegal {
+			w.WriteHeader(http.StatusBadRequest)
 		}
 	})
 	return http.ListenAndServe(":3333", r)
@@ -108,7 +107,7 @@ func NewGame() Game {
 type MoveRes int
 
 const (
-	Win = iota
+	Win = 0
 	Lose
 	Draw
 	Illegal
