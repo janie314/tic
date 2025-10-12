@@ -10,6 +10,12 @@ A health check.
 
 Response: empty.
 
+## `/tic/version` (GET)
+
+A health check.
+
+Response example: `"1760301245"`
+
 ## `/tic/game` (POST)
 
 Create a new game.
@@ -32,6 +38,7 @@ Response example:
     "players": ["jane","gwen"],
     "piece": "X",
     "state": [["_","X","O"],["X","O","_"],["O","_","X"]],
+    "result": "", // "win", "draw", ""
     "winner": ""
   }
 ]
