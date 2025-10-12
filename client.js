@@ -1,28 +1,38 @@
-while (true) {
-  const res = await fetch("http://192.168.1.82/tic/games").then((r) =>
-    r.json()
-  );
+const [_t, _s, host, user] = Bun.argv;
 
-  for (const game of res) {
-    console.log(game);
-    if (game.turn === "jane") {
-      for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          if (game.state[i][j] === "_") {
-            fetch("http://192.168.1.82/tic/move", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                id: game.id,
-                user: "jane",
-                row: i,
-                col: j,
-              }),
-            });
-          }
-        }
-      }
+while (true) {
+    let res;
+    const res1 = await fetch(`http://${host}/tic/games`);
+    if (res1.ok) {
+        res = await res1.json()
+    } else {
+        continue;
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
+    console.log("loaded games");
+    for (const game of res) {
+        console.log('game', game.id, 'turn', game.turn);
+        if (game.turn === user) {
+            while (true) {
+                const i = Math.floor(Math.random() * 3);
+                const j = Math.floor(Math.random() * 3);
+                if (game.state[i][j] === "_") {
+                    const body = {
+                        id: game.id,
+                        user: user,
+                        row: i,
+                        col: j,
+                    };
+                    console.log(game);
+                    console.log(body);
+                    fetch(`http://${host}/tic/move`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
 }
