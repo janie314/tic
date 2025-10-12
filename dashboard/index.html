@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe Games</title>
+    <style>
+        pre {
+            font-size: 60px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <pre id="gameState">Loading...</pre>
+
+    <script>
+        async function updateGameState() {
+            try {
+                const response = await fetch('/tic/results');
+                const data = await response.json();
+                document.getElementById('gameState').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('gameState').textContent = 'Error loading game state';
+                console.error('Error:', error);
+            }
+        }
+
+        // Initial load
+        updateGameState();
+
+        // Refresh every 30 seconds
+        setInterval(updateGameState, 30000);
+    </script>
+</body>
+</html>

@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,7 +52,7 @@ func run() error {
 	var results Results
 
 	games := make(map[string]Game)
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 100; i++ {
 		results.OpenGames++
 		game := NewGame()
 		games[game.Id] = game
@@ -88,7 +90,6 @@ func run() error {
 			w.Write(res)
 		}
 	})
-
 	r.Post("/tic/move", func(w http.ResponseWriter, r *http.Request) {
 		var move Move
 		if err := json.NewDecoder(r.Body).Decode(&move); err != nil {
@@ -143,6 +144,27 @@ func run() error {
 			w.Write(res)
 		}
 	})
-
+	workDir, _ := os.Getwd()
+	filesDir := http.Dir(filepath.Join(workDir, "dashboard"))
+	FileServer(r, "/dashboard", filesDir)
 	return http.ListenAndServe(":3333", r)
+}
+
+func FileServer(r chi.Router, path string, root http.FileSystem) {
+	if strings.ContainsAny(path, "{}*") {
+		panic("FileServer does not permit any URL parameters.")
+	}
+
+	if path != "/" && path[len(path)-1] != '/' {
+		r.Get(path, http.RedirectHandler(path+"/", http.StatusMovedPermanently).ServeHTTP)
+		path += "/"
+	}
+	path += "*"
+
+	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
+		rctx := chi.RouteContext(r.Context())
+		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
+		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
+		fs.ServeHTTP(w, r)
+	})
 }
