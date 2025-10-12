@@ -5,12 +5,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+type Results struct {
+	OpenGames    int
+	JaneWins     int
+	GwenWins     int
+	Draws        int
+	JaneBadMoves int
+	GwenBadMoves int
+}
 
 func main() {
 	err := run()
@@ -31,8 +41,17 @@ func run() error {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	filePath := "tic.log"
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+
+	var results Results
+
 	games := make(map[string]Game)
 	for i := 0; i < 1; i++ {
+		results.OpenGames++
 		game := NewGame()
 		games[game.Id] = game
 	}
@@ -41,7 +60,7 @@ func run() error {
 		w.Write([]byte("yes i am alive"))
 	})
 	r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("1760301245"))
+		w.Write([]byte("1760305657"))
 	})
 	r.Get("/tic/games", func(w http.ResponseWriter, r *http.Request) {
 		memoryLock.RLock()
@@ -59,6 +78,17 @@ func run() error {
 			w.Write(res)
 		}
 	})
+	r.Get("/tic/results", func(w http.ResponseWriter, r *http.Request) {
+		res, err := json.Marshal(results)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, err.Error())
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(res)
+		}
+	})
+
 	r.Post("/tic/move", func(w http.ResponseWriter, r *http.Request) {
 		var move Move
 		if err := json.NewDecoder(r.Body).Decode(&move); err != nil {
@@ -67,8 +97,20 @@ func run() error {
 		} else if game, ok := games[move.Id]; !ok {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "thats not an ID")
+			switch move.User {
+			case "jane":
+				results.JaneBadMoves++
+			case "gwen":
+				results.GwenBadMoves++
+			}
 			return
 		} else if err := MoveResult(&game, &move); err != nil {
+			switch move.User {
+			case "jane":
+				results.JaneBadMoves++
+			case "gwen":
+				results.GwenBadMoves++
+			}
 			w.WriteHeader(http.StatusBadRequest)
 		} else if res, err := json.Marshal(game); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -76,8 +118,31 @@ func run() error {
 			memoryLock.Lock()
 			defer memoryLock.Unlock()
 			games[move.Id] = game
+			if game.Result == "win" && game.Winner == "jane" {
+				file.Write(res)
+				fmt.Fprintf(file, "\000")
+				delete(games, move.Id)
+				newGame := NewGame()
+				games[newGame.Id] = newGame
+				results.JaneWins++
+			} else if game.Result == "win" && game.Winner == "gwen" {
+				file.Write(res)
+				fmt.Fprintf(file, "\000")
+				delete(games, move.Id)
+				newGame := NewGame()
+				games[newGame.Id] = newGame
+				results.GwenWins++
+			} else if game.Result == "draw" {
+				file.Write(res)
+				fmt.Fprintf(file, "\000")
+				delete(games, move.Id)
+				newGame := NewGame()
+				games[newGame.Id] = newGame
+				results.Draws++
+			}
 			w.Write(res)
 		}
 	})
+
 	return http.ListenAndServe(":3333", r)
 }
