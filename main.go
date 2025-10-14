@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -41,6 +40,7 @@ func run() error {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.RedirectSlashes)
 	r.Use(middleware.Timeout(2 * time.Second))
 	r.Use(middleware.Throttle(100))
 
@@ -65,10 +65,12 @@ func run() error {
 	}
 
 	r.Get("/tic", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("yes i am alive"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode("yes i am alive")
 	})
-	r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("1760305657"))
+	r.Get("/tic/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(1760400306)
 	})
 	r.Get("/tic/games", func(w http.ResponseWriter, r *http.Request) {
 		memoryLock.RLock()
@@ -77,30 +79,17 @@ func run() error {
 		for _, v := range games {
 			gamesSlice = append(gamesSlice, v)
 		}
-		res, err := json.Marshal(gamesSlice)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err.Error())
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(res)
-		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(gamesSlice)
 	})
 	r.Get("/tic/results", func(w http.ResponseWriter, r *http.Request) {
-		res, err := json.Marshal(results)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err.Error())
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(res)
-		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
 	})
 	r.Post("/tic/move", func(w http.ResponseWriter, r *http.Request) {
 		var move Move
 		if err := json.NewDecoder(r.Body).Decode(&move); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			return
 		} else if game, ok := games[move.Id]; !ok {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "thats not an ID")
@@ -110,66 +99,42 @@ func run() error {
 			case "gwen":
 				results.GwenBadMoves++
 			}
-			return
 		} else if err := MoveResult(&game, &move); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "bad move")
 			switch move.User {
 			case "jane":
 				results.JaneBadMoves++
 			case "gwen":
 				results.GwenBadMoves++
 			}
-			w.WriteHeader(http.StatusBadRequest)
 		} else if res, err := json.Marshal(game); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
 			memoryLock.Lock()
 			defer memoryLock.Unlock()
 			games[move.Id] = game
+			writeResult := false
 			if game.Result == "win" && game.Winner == "jane" {
-				file.Write(res)
-				fmt.Fprintf(file, "\000")
-				delete(games, move.Id)
-				newGame := NewGame()
-				games[newGame.Id] = newGame
 				results.JaneWins++
 			} else if game.Result == "win" && game.Winner == "gwen" {
-				file.Write(res)
-				fmt.Fprintf(file, "\000")
-				delete(games, move.Id)
-				newGame := NewGame()
-				games[newGame.Id] = newGame
 				results.GwenWins++
 			} else if game.Result == "draw" {
+				results.Draws++
+			}
+			if writeResult {
 				file.Write(res)
 				fmt.Fprintf(file, "\000")
 				delete(games, move.Id)
 				newGame := NewGame()
 				games[newGame.Id] = newGame
-				results.Draws++
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(res)
 		}
 	})
-	filesDir := http.Dir(filepath.Join(exeDir, "dashboard"))
-	FileServer(r, "/tic/dashboard", filesDir)
+	fs := http.FileServer(http.Dir(filepath.Join(exeDir, "dashboard")))
+	r.Handle("/tic/dashboard", http.StripPrefix("/tic/dashboard", fs))
+	log.Println("listening on :3333")
 	return http.ListenAndServe(":3333", r)
-}
-
-func FileServer(r chi.Router, path string, root http.FileSystem) {
-	if strings.ContainsAny(path, "{}*") {
-		panic("FileServer does not permit any URL parameters.")
-	}
-
-	if path != "/" && path[len(path)-1] != '/' {
-		r.Get(path, http.RedirectHandler(path+"/", http.StatusMovedPermanently).ServeHTTP)
-		path += "/"
-	}
-	path += "*"
-
-	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
-		rctx := chi.RouteContext(r.Context())
-		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
-		fs.ServeHTTP(w, r)
-	})
 }
