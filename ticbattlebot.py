@@ -22,8 +22,8 @@ def make_move(board, player):
         if board[i] == '_':
             new_board = list(board)
             new_board[i] = opponent
-            new_board = ''.join(new_board)
-            if check_winner(new_board, opponent):
+            if check_winner(''.join(new_board), opponent):
+                new_board[i] = player
                 return ''.join(new_board)
 
     # Try to control the center

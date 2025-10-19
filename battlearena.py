@@ -48,10 +48,13 @@ def main():
         bot = bots[current_player]
         player = players[current_player]
         board = run_bot(bot, player, board)
-        print(f"Board after {bot}: {board}")
+        print(f"{bot},{player}")
+        print(f"Board after {bot}:")
+        for i in range(0, 9, 3):
+            print(board[i:i+3])
 
         if check_winner(board, player):
-            print(f"Winner: {bot}")
+            print(f"Winner: {player}")
             break
 
         if check_draw(board):
