@@ -1,3 +1,5 @@
-tic.log
 node_modules
 tic
+tic.log
+.zig-cache
+.venv
