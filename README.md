@@ -2,10 +2,10 @@
 
 # spec
 
-Write a bot like this:
+Write a Tic-Tac-Toe playing bot with I/O like this:
 
 ```
-./tic X _________
+./ticbattlebot X _________
 X________
 ```
 
