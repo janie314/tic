@@ -12,5 +12,5 @@ X________
 Now `ticbattlebot.py` lets you battle:
 
 ```
-./ticbattlearena.py './ticbattlebot.py' './ticbattlebot2.py'
+./battlearena.py './ticbattlebot.py' './ticbattlebot2.py'
 ```
